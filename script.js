@@ -3,7 +3,7 @@ const API_BASE_URL = 'https://20.168.192.4/api/admin/';
 const API_USERNAME = 'admin';
 const API_PASSWORD = 'Cnmrw002ra.';
 const VMRS = [
-    'conference1_alias',
+    'VMR1',
     'conference2_alias',
     'conference3_alias'
     // Add more VMR aliases as needed
