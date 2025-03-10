@@ -1,18 +1,12 @@
 // Configuration - Replace these with your actual values
-const API_BASE_URL = 'https://20.168.192.4/api/admin/';
+const API_BASE_URL = 'https://20.168.192.4/api/admin/'; // Ensure this matches your Pexip manager address
 const API_USERNAME = 'admin';
 const API_PASSWORD = 'Cnmrw002ra.';
-const VMRS = [
-    'VMR1',
-    'conference2_alias',
-    'conference3_alias'
-    // Add more VMR aliases as needed
-];
 
-async function fetchVMRStatus(vmrAlias) {
-    const url = `${API_BASE_URL}status/v1/conference/?name=${encodeURIComponent(vmrAlias)}`;
+async function fetchAllParticipants() {
+    const url = `${API_BASE_URL}status/v1/participant/`;
+    console.log(`Fetching all participants: ${url}`);
     try {
-        // fetch uses browser's HTTPS defaults; no way to disable cert check here
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -26,33 +20,10 @@ async function fetchVMRStatus(vmrAlias) {
         }
 
         const data = await response.json();
-        return data.objects[0] || null;
+        console.log('Participants response:', data);
+        return data.objects || []; // Expecting an array of participants
     } catch (error) {
-        console.error(`Error fetching VMR ${vmrAlias}:`, error);
-        return null;
-    }
-}
-
-async function fetchParticipants(conferenceId) {
-    const url = `${API_BASE_URL}status/v1/participant/?conference=${encodeURIComponent(conferenceId)}`;
-    try {
-        // Browser enforces certificate validation; no override possible
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Basic ' + btoa(`${API_USERNAME}:${API_PASSWORD}`),
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.objects;
-    } catch (error) {
-        console.error(`Error fetching participants for ${conferenceId}:`, error);
+        console.error('Error fetching participants:', error);
         return [];
     }
 }
@@ -60,8 +31,8 @@ async function fetchParticipants(conferenceId) {
 async function muteParticipant(participantId, mute) {
     const action = mute ? 'mute' : 'unmute';
     const url = `${API_BASE_URL}command/v1/participant/${action}/`;
+    console.log(`${mute ? 'Muting' : 'Unmuting'} participant ${participantId}: ${url}`);
     try {
-        // HTTPS certificate validation is browser-controlled
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -74,6 +45,7 @@ async function muteParticipant(participantId, mute) {
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
+        console.log(`Successfully ${action}d participant ${participantId}`);
         return true;
     } catch (error) {
         console.error(`Error ${action}ing participant ${participantId}:`, error);
@@ -83,8 +55,8 @@ async function muteParticipant(participantId, mute) {
 
 async function disconnectParticipant(participantId) {
     const url = `${API_BASE_URL}command/v1/participant/disconnect/`;
+    console.log(`Disconnecting participant ${participantId}: ${url}`);
     try {
-        // No client-side option to skip cert check in fetch
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -97,6 +69,7 @@ async function disconnectParticipant(participantId) {
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
+        console.log(`Successfully disconnected participant ${participantId}`);
         return true;
     } catch (error) {
         console.error(`Error disconnecting participant ${participantId}:`, error);
@@ -106,33 +79,22 @@ async function disconnectParticipant(participantId) {
 
 async function loadAllParticipants() {
     const participantsList = document.getElementById('participants-list');
-    participantsList.innerHTML = ''; // Clear previous content
+    participantsList.innerHTML = '<li>Loading participants...</li>'; // Initial feedback
 
-    let allParticipants = [];
+    const allParticipants = await fetchAllParticipants();
 
-    // Fetch participants from all VMRs
-    for (const vmrAlias of VMRS) {
-        const vmrData = await fetchVMRStatus(vmrAlias);
-        if (vmrData && vmrData.id) {
-            const participants = await fetchParticipants(vmrData.id);
-            const participantsWithVMR = participants.map(participant => ({
-                ...participant,
-                vmrName: vmrData.name
-            }));
-            allParticipants = allParticipants.concat(participantsWithVMR);
-        }
-    }
-
-    // Render all participants with control buttons
+    participantsList.innerHTML = ''; // Clear loading message
     if (allParticipants.length === 0) {
-        participantsList.innerHTML = '<li>No participants found across all VMRs.</li>';
+        participantsList.innerHTML = '<li>No participants found. Check console for details.</li>';
+        console.log('No participants found. Possible issues: No active participants, wrong credentials, or API access denied.');
     } else {
+        console.log(`Rendering ${allParticipants.length} participants`);
         allParticipants.forEach(participant => {
             const li = document.createElement('li');
             const isMuted = participant.is_muted || false;
 
             const infoSpan = document.createElement('span');
-            infoSpan.textContent = `${participant.display_name || 'Unknown'} (VMR: ${participant.vmrName}, Role: ${participant.role}, Connected: ${participant.start_time || 'N/A'})`;
+            infoSpan.textContent = `${participant.display_name || 'Unknown'} (VMR: ${participant.conference_name || 'N/A'}, Role: ${participant.role || 'N/A'}, Connected: ${participant.start_time || 'N/A'})`;
 
             const muteBtn = document.createElement('button');
             muteBtn.className = `mute-btn ${isMuted ? 'muted' : ''}`;
