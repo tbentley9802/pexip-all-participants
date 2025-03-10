@@ -3,8 +3,8 @@ const API_BASE_URL = 'https://20.168.192.4/api/admin/'; // Your Pexip manager ad
 const API_USERNAME = 'admin';
 const API_PASSWORD = 'Cnmrw002ra.';
 const VMRS = [
-    'vmr1', // Specify the VMR aliases you want to monitor
-    'conference2_alias',
+    'VMR1', // Specify the VMR aliases you want to monitor
+    'vmr1',
     'conference3_alias'
 ];
 
@@ -30,6 +30,31 @@ async function fetchAllParticipants() {
     } catch (error) {
         console.error('Error fetching participants:', error);
         return [];
+    }
+}
+
+async function fetchConferenceDetails(conferenceId) {
+    const url = `${API_BASE_URL}status/v1/conference/${conferenceId}/`;
+    console.log(`Fetching conference details for ID ${conferenceId}: ${url}`);
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Basic ' + btoa(`${API_USERNAME}:${API_PASSWORD}`),
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`Conference ${conferenceId} details:`, data);
+        return data; // Returns the conference object with 'name' field
+    } catch (error) {
+        console.error(`Error fetching conference ${conferenceId}:`, error);
+        return null;
     }
 }
 
@@ -88,24 +113,46 @@ async function loadAllParticipants() {
 
     const allParticipants = await fetchAllParticipants();
 
-    // Filter participants to only those in specified VMRs
-    const filteredParticipants = allParticipants.filter(participant =>
-        VMRS.includes(participant.conference_name)
-    );
+    if (allParticipants.length === 0) {
+        participantsList.innerHTML = '<li>No participants found. Check console for details.</li>';
+        console.log('No participants found. Possible issues: No active participants or API access denied.');
+        return;
+    }
+
+    // Get unique conference IDs
+    const conferenceIds = [...new Set(allParticipants.map(p => p.conference))];
+    console.log('Unique conference IDs:', conferenceIds);
+
+    // Fetch conference details for each ID
+    const conferenceDetails = {};
+    for (const id of conferenceIds) {
+        const details = await fetchConferenceDetails(id);
+        if (details) {
+            conferenceDetails[id] = details.name; // Store VMR name by conference ID
+        }
+    }
+    console.log('Conference details:', conferenceDetails);
+
+    // Filter participants by VMR names in VMRS
+    const filteredParticipants = allParticipants.filter(participant => {
+        const vmrName = conferenceDetails[participant.conference];
+        return vmrName && VMRS.includes(vmrName);
+    });
 
     participantsList.innerHTML = ''; // Clear loading message
     if (filteredParticipants.length === 0) {
         participantsList.innerHTML = '<li>No participants found in specified VMRs. Check console for details.</li>';
         console.log('Filtered participants:', filteredParticipants);
-        console.log('Possible issues: VMR aliases incorrect, no participants in these VMRs, or API access denied.');
+        console.log('Possible issues: VMR aliases incorrect or no participants in these VMRs.');
     } else {
         console.log(`Rendering ${filteredParticipants.length} participants from specified VMRs`);
         filteredParticipants.forEach(participant => {
             const li = document.createElement('li');
             const isMuted = participant.is_muted || false;
+            const vmrName = conferenceDetails[participant.conference] || 'Unknown';
 
             const infoSpan = document.createElement('span');
-            infoSpan.textContent = `${participant.display_name || 'Unknown'} (VMR: ${participant.conference_name || 'N/A'}, Role: ${participant.role || 'N/A'}, Connected: ${participant.start_time || 'N/A'})`;
+            infoSpan.textContent = `${participant.display_name || 'Unknown'} (VMR: ${vmrName}, Role: ${participant.role || 'N/A'}, Connected: ${participant.start_time || 'N/A'})`;
 
             const muteBtn = document.createElement('button');
             muteBtn.className = `mute-btn ${isMuted ? 'muted' : ''}`;
