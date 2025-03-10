@@ -1,5 +1,5 @@
 // Configuration - Replace these with your actual values
-const API_BASE_URL = 'https://20.168.192.4/api/admin/'; // Your Pexip manager address
+const API_BASE_URL = 'https://mgr.bentleylab.net/api/admin/'; // Your Pexip manager address
 const API_USERNAME = 'admin';
 const API_PASSWORD = 'Cnmrw002ra.';
 const VMRS = [
