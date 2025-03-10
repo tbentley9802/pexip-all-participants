@@ -1,7 +1,12 @@
 // Configuration - Replace these with your actual values
-const API_BASE_URL = 'https://20.168.192.4/api/admin/'; // Ensure this matches your Pexip manager address
+const API_BASE_URL = 'https://20.168.192.4/api/admin/'; // Your Pexip manager address
 const API_USERNAME = 'admin';
 const API_PASSWORD = 'Cnmrw002ra.';
+const VMRS = [
+    'VMR1', // Specify the VMR aliases you want to monitor
+    'conference2_alias',
+    'conference3_alias'
+];
 
 async function fetchAllParticipants() {
     const url = `${API_BASE_URL}status/v1/participant/`;
@@ -21,7 +26,7 @@ async function fetchAllParticipants() {
 
         const data = await response.json();
         console.log('Participants response:', data);
-        return data.objects || []; // Expecting an array of participants
+        return data.objects || [];
     } catch (error) {
         console.error('Error fetching participants:', error);
         return [];
@@ -83,13 +88,19 @@ async function loadAllParticipants() {
 
     const allParticipants = await fetchAllParticipants();
 
+    // Filter participants to only those in specified VMRs
+    const filteredParticipants = allParticipants.filter(participant =>
+        VMRS.includes(participant.conference_name)
+    );
+
     participantsList.innerHTML = ''; // Clear loading message
-    if (allParticipants.length === 0) {
-        participantsList.innerHTML = '<li>No participants found. Check console for details.</li>';
-        console.log('No participants found. Possible issues: No active participants, wrong credentials, or API access denied.');
+    if (filteredParticipants.length === 0) {
+        participantsList.innerHTML = '<li>No participants found in specified VMRs. Check console for details.</li>';
+        console.log('Filtered participants:', filteredParticipants);
+        console.log('Possible issues: VMR aliases incorrect, no participants in these VMRs, or API access denied.');
     } else {
-        console.log(`Rendering ${allParticipants.length} participants`);
-        allParticipants.forEach(participant => {
+        console.log(`Rendering ${filteredParticipants.length} participants from specified VMRs`);
+        filteredParticipants.forEach(participant => {
             const li = document.createElement('li');
             const isMuted = participant.is_muted || false;
 
