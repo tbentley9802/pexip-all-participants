@@ -3,7 +3,7 @@ const API_BASE_URL = 'https://20.168.192.4/api/admin/'; // Your Pexip manager ad
 const API_USERNAME = 'admin';
 const API_PASSWORD = 'Cnmrw002ra.';
 const VMRS = [
-    'VMR1', // Specify the VMR aliases you want to monitor
+    'vmr1', // Specify the VMR aliases you want to monitor
     'conference2_alias',
     'conference3_alias'
 ];
